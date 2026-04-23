@@ -1,6 +1,6 @@
 python-telegram-bot
 pandas-ta
-MetaTrader5
+mt5linux
 binance-connector
 python-dotenv
 websockets
