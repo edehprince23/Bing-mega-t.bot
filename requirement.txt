@@ -1,6 +1,6 @@
 python-telegram-bot
-pandas-ta
 binance-connector
 python-dotenv
 websockets
 requests
+pandas-ta
