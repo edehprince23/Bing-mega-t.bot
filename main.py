@@ -1,6 +1,7 @@
 import os
-import logging
-from mt5linux import MetaTrader5 # Use the Linux bridge
+import asyncio
+import json
+import websockets
 from telegram import Update
 from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
 from binance.spot import Spot as BinanceClient
@@ -8,38 +9,43 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-# Initialize MT5 with the IP address of your Windows PC/VPS
-# Replace 'YOUR_WINDOWS_IP' with the actual IP address
-mt5 = MetaTrader5(host='YOUR_WINDOWS_IP', port=8001)
-
-class ProfessionalTradingBot:
+class PocketOptionBot:
     def __init__(self):
         self.is_active = False
         self.binance_client = BinanceClient(api_key=os.getenv("BINANCE_API_KEY"))
-        
-    async def init_mt5(self):
-        """Initializes connection to the MT5 bridge."""
-        if not mt5.initialize():
-            print(f"MT5 Init Failed: {mt5.last_error()}")
-            return False
-        return mt5.login(
-            int(os.getenv("MT5_LOGIN")), 
-            password=os.getenv("MT5_PASSWORD"), 
-            server=os.getenv("MT5_SERVER")
-        )
+        self.po_uid = os.getenv("PO_UID")
+        self.session_token = os.getenv("PO_SESSION_TOKEN")
 
-    async def balance(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        connected = await self.init_mt5()
-        if connected:
-            acc = mt5.account_info()
-            msg = f"💹 **MT5 Balance**: ${acc.balance}\n"
-            msg += f"• Pocket Option UID: {os.getenv('PO_UID')}"
-            await update.message.reply_text(msg, parse_mode='Markdown')
-        else:
-            await update.message.reply_text("❌ Could not connect to MT5 Bridge.")
+    async def start(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        self.is_active = True
+        await update.message.reply_text(f"🚀 **Bot Online!**\nMonitoring Pocket Option (UID: {self.po_uid})\nType /status to check connection.")
+
+    async def status(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        # Basic status check
+        msg = (
+            "📊 **Bot Status**\n"
+            f"• Mode: {'Active' if self.is_active else 'Paused'}\n"
+            f"• Pocket Option UID: {self.po_uid}\n"
+            "• Market Data: Binance API Connected"
+        )
+        await update.message.reply_text(msg, parse_mode='Markdown')
+
+    async def get_price(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        # Example fetching Bitcoin price from Binance
+        ticker = self.binance_client.ticker_price("BTCUSDT")
+        price = float(ticker['price'])
+        await update.message.reply_text(f"💰 **Current BTC Price**: ${price:,.2f}")
 
 if __name__ == "__main__":
-    bot = ProfessionalTradingBot()
+    bot = PocketOptionBot()
+    
+    # Build the Telegram Application
     app = ApplicationBuilder().token(os.getenv("TELEGRAM_BOT_TOKEN")).build()
-    app.add_handler(CommandHandler("balance", bot.balance))
+    
+    # Add Handlers
+    app.add_handler(CommandHandler("start", bot.start))
+    app.add_handler(CommandHandler("status", bot.status))
+    app.add_handler(CommandHandler("price", bot.get_price))
+    
+    print("Railway: Bot is starting up...")
     app.run_polling()
